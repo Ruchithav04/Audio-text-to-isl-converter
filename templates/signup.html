@@ -1,24 +1,46 @@
 {% extends 'base.html' %}
+
 {% block content %}
 <div class="auth-page">
-	<div class="form-style">
-		<h1>Sign Up</h1>
-		<form method="post">
-			{% csrf_token %}
+    <div class="form-style">
+        <h1>Sign Up</h1>
 
-			<label for="id_username">Username:</label>
-			<input type="text" name="username" id="id_username" required>
+        <!-- Show messages (errors, success) -->
+        {% if messages %}
+            {% for message in messages %}
+                <p style="color:red">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
 
-			<label for="id_password1">Password:</label>
-			<input type="password" name="password1" id="id_password1" required>
+        <form method="post">
+            {% csrf_token %}
 
-			<label for="id_password2">Password confirmation:</label>
-			<input type="password" name="password2" id="id_password2" required>
+            <!-- Render Django form fields -->
+            {{ form.username.label_tag }}
+            {{ form.username }}
 
-			<small>Enter the same password as before, for verification.</small>
+            {{ form.password1.label_tag }}
+            {{ form.password1 }}
 
-			<input type="submit" value="Sign Up">
-		</form>
-	</div>
+            {{ form.password2.label_tag }}
+            {{ form.password2 }}
+
+            <!-- Optional help text -->
+            {% if form.password2.help_text %}
+                <small>{{ form.password2.help_text }}</small>
+            {% endif %}
+
+            <!-- Display field errors -->
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <p style="color:red">{{ error }}</p>
+                {% endfor %}
+            {% endfor %}
+
+            <input type="submit" value="Sign Up">
+        </form>
+
+        <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
+    </div>
 </div>
 {% endblock %}

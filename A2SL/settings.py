@@ -48,13 +48,14 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',  
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
 
 ROOT_URLCONF = 'A2SL.urls'
 
@@ -129,3 +130,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [    
     os.path.join(BASE_DIR,"assets"),
 ]
+# Fix login redirect issues
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'animation'
+LOGOUT_REDIRECT_URL = 'home'

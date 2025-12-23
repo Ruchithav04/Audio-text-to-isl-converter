@@ -1,142 +1,150 @@
-from django.http import HttpResponse
+# views.py
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.contrib.auth import login,logout
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-import nltk
-from django.contrib.staticfiles import finders
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.staticfiles import finders
+import os
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 
+import os
+from django.conf import settings
+
+# Ensure nltk_data path
+NLTK_DATA_DIR = os.path.join(settings.BASE_DIR, 'nltk_data')
+if NLTK_DATA_DIR not in nltk.data.path:
+    nltk.data.path.append(NLTK_DATA_DIR)
+
+# Download required resources safely
+required_nltk = [
+    ('taggers', 'averaged_perceptron_tagger_eng'),  # this is the one your error wants
+    ('tokenizers', 'punkt'),
+    ('corpora', 'wordnet'),
+    ('corpora', 'omw-1.4'),
+    ('corpora', 'stopwords')
+]
+
+for folder, resource in required_nltk:
+    try:
+        nltk.data.find(f"{folder}/{resource}")
+    except LookupError:
+        nltk.download(resource, download_dir=NLTK_DATA_DIR)
+
+
+# ---------------------------
+# Basic pages
+# ---------------------------
 def home_view(request):
-	return render(request,'home.html')
-
+    return render(request, 'home.html')
 
 def about_view(request):
-	return render(request,'about.html')
-
+    return render(request, 'about.html')
 
 def contact_view(request):
-	return render(request,'contact.html')
+    return render(request, 'contact.html')
 
-@login_required(login_url="login")
+# ---------------------------
+# Animation view (login required)
+# ---------------------------
+@login_required(login_url='login')
 def animation_view(request):
-	if request.method == 'POST':
-		text = request.POST.get('sen')
-		#tokenizing the sentence
-		text.lower()
-		#tokenizing the sentence
-		words = word_tokenize(text)
+    if request.method == 'POST':
+        text = request.POST.get('sen', '')
+        text = text.lower()
+        words = word_tokenize(text)
+        tagged = nltk.pos_tag(words)
 
-		tagged = nltk.pos_tag(words)
-		tense = {}
-		tense["future"] = len([word for word in tagged if word[1] == "MD"])
-		tense["present"] = len([word for word in tagged if word[1] in ["VBP", "VBZ","VBG"]])
-		tense["past"] = len([word for word in tagged if word[1] in ["VBD", "VBN"]])
-		tense["present_continuous"] = len([word for word in tagged if word[1] in ["VBG"]])
+        # Determine probable tense
+        tense = {
+            "future": len([w for w, p in tagged if p == "MD"]),
+            "present": len([w for w, p in tagged if p in ["VBP", "VBZ", "VBG"]]),
+            "past": len([w for w, p in tagged if p in ["VBD", "VBN"]]),
+            "present_continuous": len([w for w, p in tagged if p == "VBG"]),
+        }
+        probable_tense = max(tense, key=tense.get)
 
+        # Stopwords
+        stop_words = set(nltk.corpus.stopwords.words('english'))
 
+        # Lemmatize filtered words
+        lr = WordNetLemmatizer()
+        filtered_text = []
+        for w, p in zip(words, tagged):
+            if w not in stop_words:
+                if p[1] in ['VBG','VBD','VBZ','VBN','NN']:
+                    filtered_text.append(lr.lemmatize(w, pos='v'))
+                elif p[1] in ['JJ','JJR','JJS','RBR','RBS']:
+                    filtered_text.append(lr.lemmatize(w, pos='a'))
+                else:
+                    filtered_text.append(lr.lemmatize(w))
+        words = filtered_text
 
-		#stopwords that will be removed
-		stop_words = set(["mightn't", 're', 'wasn', 'wouldn', 'be', 'has', 'that', 'does', 'shouldn', 'do', "you've",'off', 'for', "didn't", 'm', 'ain', 'haven', "weren't", 'are', "she's", "wasn't", 'its', "haven't", "wouldn't", 'don', 'weren', 's', "you'd", "don't", 'doesn', "hadn't", 'is', 'was', "that'll", "should've", 'a', 'then', 'the', 'mustn', 'i', 'nor', 'as', "it's", "needn't", 'd', 'am', 'have',  'hasn', 'o', "aren't", "you'll", "couldn't", "you're", "mustn't", 'didn', "doesn't", 'll', 'an', 'hadn', 'whom', 'y', "hasn't", 'itself', 'couldn', 'needn', "shan't", 'isn', 'been', 'such', 'shan', "shouldn't", 'aren', 'being', 'were', 'did', 'ma', 't', 'having', 'mightn', 've', "isn't", "won't"])
+        # Adjust tense words
+        if probable_tense == "past" and tense["past"] >= 1:
+            words = ["Before"] + words
+        elif probable_tense == "future" and tense["future"] >= 1:
+            if "Will" not in words:
+                words = ["Will"] + words
+        elif probable_tense == "present" and tense["present_continuous"] >= 1:
+            words = ["Now"] + words
 
+        # Map words to animations or split letters if animation not found
+        final_words = []
+        for w in words:
+            path = w + ".mp4"
+            f = finders.find(path)
+            if not f:
+                final_words.extend(list(w))
+            else:
+                final_words.append(w)
+        words = final_words
 
+        return render(request, 'animation.html', {'words': words, 'text': text})
+    return render(request, 'animation.html')
 
-		#removing stopwords and applying lemmatizing nlp process to words
-		lr = WordNetLemmatizer()
-		filtered_text = []
-		for w,p in zip(words,tagged):
-			if w not in stop_words:
-				if p[1]=='VBG' or p[1]=='VBD' or p[1]=='VBZ' or p[1]=='VBN' or p[1]=='NN':
-					filtered_text.append(lr.lemmatize(w,pos='v'))
-				elif p[1]=='JJ' or p[1]=='JJR' or p[1]=='JJS'or p[1]=='RBR' or p[1]=='RBS':
-					filtered_text.append(lr.lemmatize(w,pos='a'))
-
-				else:
-					filtered_text.append(lr.lemmatize(w))
-
-
-		#adding the specific word to specify tense
-		words = filtered_text
-		temp=[]
-		for w in words:
-			if w=='I':
-				temp.append('Me')
-			else:
-				temp.append(w)
-		words = temp
-		probable_tense = max(tense,key=tense.get)
-
-		if probable_tense == "past" and tense["past"]>=1:
-			temp = ["Before"]
-			temp = temp + words
-			words = temp
-		elif probable_tense == "future" and tense["future"]>=1:
-			if "Will" not in words:
-					temp = ["Will"]
-					temp = temp + words
-					words = temp
-			else:
-				pass
-		elif probable_tense == "present":
-			if tense["present_continuous"]>=1:
-				temp = ["Now"]
-				temp = temp + words
-				words = temp
-
-
-		filtered_text = []
-		for w in words:
-			path = w + ".mp4"
-			f = finders.find(path)
-			#splitting the word if its animation is not present in database
-			if not f:
-				for c in w:
-					filtered_text.append(c)
-			#otherwise animation of word
-			else:
-				filtered_text.append(w)
-		words = filtered_text;
-
-
-		return render(request,'animation.html',{'words':words,'text':text})
-	else:
-		return render(request,'animation.html')
-
-
-
-
+# ---------------------------
+# Signup
+# ---------------------------
 def signup_view(request):
-	if request.method == 'POST':
-		form = UserCreationForm(request.POST)
-		if form.is_valid():
-			user = form.save()
-			login(request,user)
-			# log the user in
-			return redirect('animation')
-	else:
-		form = UserCreationForm()
-	return render(request,'signup.html',{'form':form})
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, "Signup successful!")
+            return redirect('animation')
+        else:
+            messages.error(request, "Signup failed. Please check the errors below.")
+    else:
+        form = UserCreationForm()
+    return render(request, 'signup.html', {'form': form})
 
-
-
+# ---------------------------
+# Login
+# ---------------------------
 def login_view(request):
-	if request.method == 'POST':
-		form = AuthenticationForm(data=request.POST)
-		if form.is_valid():
-			#log in user
-			user = form.get_user()
-			login(request,user)
-			if 'next' in request.POST:
-				return redirect(request.POST.get('next'))
-			else:
-				return redirect('animation')
-	else:
-		form = AuthenticationForm()
-	return render(request,'login.html',{'form':form})
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            next_url = request.GET.get('next') or request.POST.get('next')
+            messages.success(request, f"Welcome back, {user.username}!")
+            return redirect(next_url or 'animation')
+        else:
+            messages.error(request, "Login failed. Please check username and password.")
+    else:
+        form = AuthenticationForm()
+    return render(request, 'login.html', {'form': form})
 
-
+# ---------------------------
+# Logout
+# ---------------------------
 def logout_view(request):
-	logout(request)
-	return redirect("home")
+    logout(request)
+    messages.success(request, "You have been logged out.")
+    return redirect('home')

@@ -1,21 +1,45 @@
 {% extends 'base.html' %}
+
 {% block content %}
 <div class="auth-page">
-	<div class="form-style">
-		<h1>Log in</h1>
-		<form action="." method="post">
-			{% csrf_token %}
-			<label for="id_username">Username:</label>
-			<input type="text" name="username" id="id_username" required>
+    <div class="form-style">
+        <h1>Log in</h1>
 
-			<label for="id_password">Password:</label>
-			<input type="password" name="password" id="id_password" required>
+        <!-- Show messages (login errors or notifications) -->
+        {% if messages %}
+            {% for message in messages %}
+                <p style="color:red">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
 
-			{% if request.GET.next %}
-			<input type="hidden" name="next" value="{{ request.GET.next }}">
-			{% endif %}
-			<input type="submit" value="Log in">
-		</form>
-	</div>
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Render Django form fields -->
+            {{ form.username.label_tag }}
+            {{ form.username }}
+
+            {{ form.password.label_tag }}
+            {{ form.password }}
+
+            <!-- Preserve next parameter -->
+            {% if request.GET.next %}
+                <input type="hidden" name="next" value="{{ request.GET.next }}">
+            {% elif request.POST.next %}
+                <input type="hidden" name="next" value="{{ request.POST.next }}">
+            {% endif %}
+
+            <!-- Display form field errors -->
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <p style="color:red">{{ error }}</p>
+                {% endfor %}
+            {% endfor %}
+
+            <input type="submit" value="Log in">
+        </form>
+
+        <p>Don't have an account? <a href="{% url 'signup' %}">Sign up here</a></p>
+    </div>
 </div>
 {% endblock %}

@@ -1,132 +1,116 @@
 {% extends 'base.html' %}
 {% load static %}
 
-
 {% block content %}
 <div class="split left">
-	<h2 align="center">Enter Text or Use Mic</h2>
-	<br>
-	<form action="" method="post" align="left">
-		{% csrf_token %}
-		<input type="text" name="sen" class="mytext" id="speechToText" placeholder="">
-		<button type="button" name="button" class="mic" onclick="record()"><img src="{% static 'microphone.png' %}"
-				height="32px" width="38px" /></button>
-		&nbsp&nbsp&nbsp&nbsp
-		<input type="submit" name="submit" class="submit">
+    <h2 align="center">Enter Text or Use Mic</h2>
+    <br>
+    <form method="post" align="left">
+        {% csrf_token %}
+        <input type="text" name="sen" class="mytext" id="speechToText" placeholder="Enter sentence" required>
+        <button type="button" class="mic" onclick="record()">
+            <img src="{% static 'microphone.png' %}" height="32" width="38" />
+        </button>
+        &nbsp;&nbsp;&nbsp;&nbsp;
+        <input type="submit" class="submit" value="Submit">
+    </form>
+    <br>
 
-	</form>
-	<br>
-	<table cellspacing="20px">
-		<tr>
-			<td class="td">The text that you entered is:</td>
-			<td class="td">{{ text }}</td>
-		</tr>
-		<tr>
-			<td class="td">Key words in sentence:</td>
-			<td class="td">
-				<ul class="td" id="list" align="center">
-					{% for word in words %}
-					<li id="{{ i }}" style="margin-right: 8px">{{ word }}</li>
-					{% endfor %}
-				</ul>
-			</td>
-		</tr>
-	</table>
+    {% if words %}
+    <table cellspacing="20px">
+        <tr>
+            <td class="td">The text that you entered is:</td>
+            <td class="td">{{ text }}</td>
+        </tr>
+        <tr>
+            <td class="td">Key words in sentence:</td>
+            <td class="td">
+                <ul class="td" id="list" align="center">
+                    {% for word in words %}
+                    <li id="word{{ forloop.counter0 }}" style="margin-right: 8px">{{ word }}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+        </tr>
+    </table>
+    {% endif %}
 </div>
+
 <div class="split right">
-	<h2 align="center">Sign Language Animation</h2>
-
-	<div style="text-align:center"> &nbsp&nbsp
-		<button class="submit" onclick="playPause()">Play/Pause</button>
-		<!--  LETS USE ONLY PLAY PAUSE BUTTON WITH 720 *420 ,IT FITS THE SCREEN ASHISH
-
-  	<button onclick="makeBig()">Big</button>
-  	<button onclick="makeSmall()">Small</button>
-  	<button onclick="makeNormal()">Normal</button>-->
-
-
-		<video id="videoPlayer" width="600" height="350" preload="auto" autoplay>
-			<source src="" type="video/mp4">
-			Your browser does not support HTML5 video.
-		</video>
-	</div>
+    <h2 align="center">Sign Language Animation</h2>
+    <div style="text-align:center">
+        <button class="submit" onclick="playPause()">Play/Pause</button>
+        <video id="videoPlayer" width="600" height="350" preload="auto" autoplay muted>
+            <source src="" type="video/mp4">
+            Your browser does not support HTML5 video.
+        </video>
+    </div>
 </div>
-
 
 <script>
-	//webkitSpeechRecognition api for speech to text conversion
-	function record() {
-		var recognition = new webkitSpeechRecognition();
-		recognition.lang = 'en-IN';
+    // Speech-to-text using webkitSpeechRecognition
+    function record() {
+        var recognition = new webkitSpeechRecognition();
+        recognition.lang = 'en-IN';
+        recognition.onresult = function(event) {
+            document.getElementById('speechToText').value = event.results[0][0].transcript;
+        }
+        recognition.start();
+    }
 
-		recognition.onresult = function (event) {
-			console.log(event)
-			document.getElementById('speechToText').value = event.results[0][0].transcript;
-		}
-		recognition.start();
-	}
-	function play() {
-		var videoSource = new Array();
-		var videos = document.getElementById("list").getElementsByTagName("li");
-		var j;
-		for (j = 0; j < videos.length; j++) {
-			videoSource[j] = "/static/" + videos[j].innerHTML + ".mp4";
-		}
+    // Play animation sequence
+    var isPlaying = false;
+    function play() {
+        var videos = document.getElementById("list").getElementsByTagName("li");
+        var videoSource = [];
+        for (var j = 0; j < videos.length; j++) {
+            videoSource[j] = "{% static '' %}" + videos[j].innerHTML + ".mp4"; // Adjust folder if needed
+        }
 
-		var i = 0; // define i
-		var videoCount = videoSource.length;
+        var i = 0;
+        var videoCount = videoSource.length;
 
-		function videoPlay(videoNum) {
-			document.getElementById("list").getElementsByTagName("li")[videoNum].style.color = "#09edc7";
-			document.getElementById("list").getElementsByTagName("li")[videoNum].style.fontSize = "xx-large";
-			document.getElementById("videoPlayer").setAttribute("src", videoSource[videoNum]);
-			document.getElementById("videoPlayer").load();
-			document.getElementById("videoPlayer").play();
+        function videoPlay(videoNum) {
+            var li = videos[videoNum];
+            li.style.color = "#09edc7";
+            li.style.fontSize = "xx-large";
+            var player = document.getElementById("videoPlayer");
+            player.setAttribute("src", videoSource[videoNum]);
+            player.load();
+            player.play();
+        }
 
-		}
-		document.getElementById('videoPlayer').addEventListener('ended', myHandler, false);
-		document.getElementById("list").getElementsByTagName("li")[0].style.color = "#09edc7";
-		document.getElementById("list").getElementsByTagName("li")[0].style.fontSize = "xx-large";
+        function nextVideo() {
+            videos[i].style.color = "#007a5a";
+            videos[i].style.fontSize = "20px";
+            i++;
+            if (i < videoCount) {
+                videoPlay(i);
+            } else {
+                document.getElementById("videoPlayer").pause();
+                isPlaying = false;
+            }
+        }
 
-		videoPlay(0); // play the video
+        document.getElementById('videoPlayer').addEventListener('ended', nextVideo, false);
 
-		function myHandler() {
-			document.getElementById("list").getElementsByTagName("li")[i].style.color = " #007a5a";//
-			document.getElementById("list").getElementsByTagName("li")[i].style.fontSize = "20px";
-			i++;
-			if (i == videoCount) {
-				document.getElementById("videoPlayer").pause();
-			}
-			else {
-				videoPlay(i);
-			}
-		}
-	}
-	/* LETS USE ONLY PLAY PAUSE BUTTON WITH 720 *420 ,IT FITS THE SCREEN
-	function makeBig() {
-		document.getElementById("videoPlayer").width = 560;
-		document.getElementById("videoPlayer").height = 360;
-	}
+        if (videoCount > 0) {
+            isPlaying = true;
+            videoPlay(0);
+        }
+    }
 
-	function makeSmall() {
-		document.getElementById("videoPlayer").width = 320;
-		document.getElementById("videoPlayer").height = 180;
-	}
-
-	function makeNormal() {
-		document.getElementById("videoPlayer").width = 420;
-		document.getElementById("videoPlayer").height =280;
-	}*/
-	function playPause() {
-		if (document.getElementById("videoPlayer").paused) {
-			play();
-		}
-		else {
-			document.getElementById("videoPlayer").pause();
-		}
-	}
-
+    function playPause() {
+        var player = document.getElementById("videoPlayer");
+        if (!isPlaying) {
+            play();
+        } else {
+            if (player.paused) {
+                player.play();
+            } else {
+                player.pause();
+            }
+        }
+    }
 </script>
-
-
 {% endblock %}
